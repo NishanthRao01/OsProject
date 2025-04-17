@@ -6,7 +6,7 @@
     <title>Deadlock Prevention & Recovery Toolkit</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <script src="https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body {
             font-family: 'Inter', sans-serif;
@@ -24,22 +24,129 @@
             50% { background-position: 100% 50%; }
             100% { background-position: 0% 50%; }
         }
-        .input-focus-ring {
-            transition: all 0.2s ease;
+        .matrix-input-table {
+            border-collapse: separate;
+            border-spacing: 4px;
         }
-        .input-focus-ring:focus {
-            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.5);
+        .matrix-input-table input {
+            width: 50px;
+            text-align: center;
+            color: white;
         }
-        .matrix-display {
-            font-family: monospace;
-            white-space: pre;
+        .matrix-cell {
+            background: rgba(55, 65, 81, 0.5);
+            border: 1px solid rgba(75, 85, 99, 0.5);
+            border-radius: 4px;
+            padding: 4px;
+        }
+        select {
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+        }
+        
+        select::-ms-expand {
+            display: none;
+        }
+        
+        select:hover {
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);
+        }
+        
+        select option {
+            background-color: #1f2937;
+            color: white;
+            padding: 8px;
+        }
+        
+        select optgroup {
+            background-color: #111827;
+            color: #60a5fa;
+            font-weight: bold;
+        }
+        
+        select:focus {
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);
+            outline: none;
+        }
+        
+        select::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        select::-webkit-scrollbar-track {
+            background: #1f2937;
+        }
+        
+        select::-webkit-scrollbar-thumb {
+            background: #4b5563;
+            border-radius: 4px;
+        }
+        
+        select::-webkit-scrollbar-thumb:hover {
+            background: #60a5fa;
+        }
+        
+        .tab-active {
+            color: #60a5fa;
+            border-bottom: 2px solid #60a5fa;
+        }
+        
+        .analysis-panel {
+            transition: all 0.3s ease-in-out;
+        }
+        
+        .analysis-panel.hidden {
+            opacity: 0;
+            transform: translateY(-10px);
         }
     </style>
 </head>
 <body class="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 text-white animate-gradient">
-    <div class="container mx-auto p-6 flex flex-col items-center min-h-screen">
+    <!-- Navigation Bar -->
+    <nav class="glass-effect fixed top-0 w-full z-50 px-6 py-4">
+        <div class="container mx-auto">
+            <div class="flex justify-between items-center">
+                <h1 class="text-2xl font-bold">Deadlock Detection Toolkit</h1>
+                <div class="flex space-x-4">
+                    <!-- Scenario Dropdown -->
+                    <div class="relative">
+                        <select id="scenarioSelect" onchange="loadExample(this.value)" 
+                                class="appearance-none bg-gray-800 text-white px-4 py-2 pr-8 rounded-lg border border-gray-700 hover:border-blue-500 focus:outline-none focus:border-blue-500 cursor-pointer">
+                            <option value="" disabled selected>Select Scenario</option>
+                            <optgroup label="Safe States">
+                                <option value="safe">Safe State Example</option>
+                            </optgroup>
+                            <optgroup label="Deadlock Scenarios">
+                                <option value="circular">Circular Wait</option>
+                                <option value="starvation">Resource Starvation</option>
+                                <option value="multiple">Multiple Resource</option>
+                                <option value="immediate">Immediate Deadlock</option>
+                                <option value="complex">Complex Deadlock</option>
+                                <option value="priority">Priority Inversion</option>
+                                <option value="cascade">Cascading Deadlock</option>
+                            </optgroup>
+                        </select>
+                        <!-- Custom dropdown arrow -->
+                        <div class="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
+                            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                            </svg>
+                        </div>
+                    </div>
+                    <!-- Clear button -->
+                    <button onclick="clearForm()" 
+                            class="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 transition-colors duration-200">
+                        Clear
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mx-auto p-6 flex flex-col items-center min-h-screen pt-24">
         <!-- Header Section -->
-        <div class="w-full text-center mb-12 mt-8">
+        <div class="w-full text-center mb-12">
             <h1 class="text-5xl font-extrabold mb-4 bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
                 Deadlock Prevention & Recovery Toolkit
             </h1>
@@ -49,40 +156,44 @@
         </div>
 
         <!-- Main Form Section -->
-        <div class="glass-effect p-8 rounded-2xl shadow-2xl w-full max-w-3xl border border-gray-700/50 space-y-6 mb-8">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <!-- Left Column -->
-                <div class="space-y-6">
-                    <div class="space-y-2">
-                        <label class="block text-lg font-semibold text-blue-300">Processes</label>
-                        <input type="text" id="processes" placeholder="e.g., P0,P1,P2,P3,P4" 
-                               class="w-full p-3 rounded-xl bg-gray-800/50 text-white border border-blue-500/30 input-focus-ring placeholder-gray-500">
+        <div class="glass-effect p-8 rounded-2xl shadow-2xl w-full max-w-4xl border border-gray-700/50 space-y-6 mb-8">
+            <!-- Matrix Builder Tools -->
+            <div class="mb-6 p-4 rounded-lg bg-gray-800/50">
+                <h3 class="text-lg font-semibold mb-4">System Configuration</h3>
+                <div class="grid grid-cols-2 gap-4 mb-6">
+                    <div>
+                        <label class="block mb-2">Number of Processes</label>
+                        <input type="number" id="numProcesses" min="1" max="10" value="3" 
+                               class="w-20 p-2 rounded bg-gray-700 text-white" onchange="updateMatrixBuilder()">
                     </div>
-                    <div class="space-y-2">
-                        <label class="block text-lg font-semibold text-purple-300">Resources</label>
-                        <input type="text" id="resources" placeholder="e.g., A,B,C" 
-                               class="w-full p-3 rounded-xl bg-gray-800/50 text-white border border-purple-500/30 input-focus-ring placeholder-gray-500">
-                    </div>
-                    <div class="space-y-2">
-                        <label class="block text-lg font-semibold text-red-300">Available Resources</label>
-                        <input type="text" id="available" placeholder="e.g., 3,3,2" 
-                               class="w-full p-3 rounded-xl bg-gray-800/50 text-white border border-red-500/30 input-focus-ring placeholder-gray-500">
+                    <div>
+                        <label class="block mb-2">Number of Resources</label>
+                        <input type="number" id="numResources" min="1" max="10" value="3" 
+                               class="w-20 p-2 rounded bg-gray-700 text-white" onchange="updateMatrixBuilder()">
                     </div>
                 </div>
 
-                <!-- Right Column -->
-                <div class="space-y-6">
-                    <div class="space-y-2">
-                        <label class="block text-lg font-semibold text-green-300">Allocation Matrix</label>
-                        <textarea id="allocation" rows="3" placeholder="e.g., [[0,1,0], [2,0,0], [3,0,2], [2,1,1], [0,0,2]]" 
-                                  class="w-full p-3 rounded-xl bg-gray-800/50 text-white border border-green-500/30 input-focus-ring placeholder-gray-500"></textarea>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div>
+                        <h4 class="font-semibold mb-2 text-blue-300">Allocation Matrix</h4>
+                        <div id="allocationMatrix"></div>
                     </div>
-                    <div class="space-y-2">
-                        <label class="block text-lg font-semibold text-yellow-300">Max Demand Matrix</label>
-                        <textarea id="max_demand" rows="3" placeholder="e.g., [[7,5,3], [3,2,2], [9,0,2], [2,2,2], [4,3,3]]" 
-                                  class="w-full p-3 rounded-xl bg-gray-800/50 text-white border border-yellow-500/30 input-focus-ring placeholder-gray-500"></textarea>
+                    <div>
+                        <h4 class="font-semibold mb-2 text-green-300">Max Demand Matrix</h4>
+                        <div id="maxDemandMatrix"></div>
                     </div>
                 </div>
+
+                <div class="mt-6">
+                    <h4 class="font-semibold mb-2 text-yellow-300">Available Resources</h4>
+                    <div id="availableResources" class="flex gap-2"></div>
+                </div>
+            </div>
+
+            <!-- Resource Distribution Chart -->
+            <div class="mt-8">
+                <h3 class="text-lg font-semibold mb-4">Resource Distribution</h3>
+                <canvas id="resourceChart" class="w-full h-64 bg-gray-800/30 rounded-lg p-2"></canvas>
             </div>
 
             <!-- Submit Button -->
@@ -93,62 +204,782 @@
         </div>
 
         <!-- Results Section -->
-        <div class="glass-effect p-8 rounded-2xl shadow-2xl w-full max-w-3xl border border-gray-700/50 mb-8">
-            <div class="flex items-center space-x-4 mb-6">
-                <div class="h-12 w-12">
-                    <lottie-player src="https://lottie.host/c6f50f10-0bd2-4e6e-b862-59b5b12aa44b/1OBQYkKrfG.json" 
-                                  background="transparent" speed="1" loop autoplay>
-                    </lottie-player>
-                </div>
-                <h2 class="text-3xl font-bold bg-gradient-to-r from-blue-400 to-green-400 bg-clip-text text-transparent">
-                    Analysis Results
-                </h2>
-            </div>
+        <div class="glass-effect p-8 rounded-2xl shadow-2xl w-full max-w-4xl border border-gray-700/50 mb-8">
+            <h2 class="text-3xl font-bold mb-6 bg-gradient-to-r from-blue-400 to-green-400 bg-clip-text text-transparent">
+                Analysis Results
+            </h2>
             <div id="result" class="text-lg space-y-4 text-gray-200"></div>
+        </div>
+
+        <!-- History Section -->
+        <div class="glass-effect p-8 rounded-2xl shadow-2xl w-full max-w-4xl border border-gray-700/50 mb-8">
+            <h3 class="text-2xl font-bold mb-4">Simulation History</h3>
+            <div id="history" class="space-y-4"></div>
+        </div>
+
+        <!-- Advanced Analysis Panel -->
+        <div class="glass-effect p-8 rounded-2xl shadow-2xl w-full max-w-4xl border border-gray-700/50 mb-8">
+            <h2 class="text-3xl font-bold mb-6 bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+                Advanced Analysis
+            </h2>
+            
+            <!-- Analysis Tabs -->
+            <div class="mb-6">
+                <div class="flex space-x-4 border-b border-gray-700">
+                    <button onclick="switchAnalysisTab('prediction')" class="px-4 py-2 text-blue-400 border-b-2 border-blue-400">
+                        Prediction
+                    </button>
+                    <button onclick="switchAnalysisTab('optimization')" class="px-4 py-2 text-gray-400 hover:text-blue-400">
+                        Optimization
+                    </button>
+                    <button onclick="switchAnalysisTab('recovery')" class="px-4 py-2 text-gray-400 hover:text-blue-400">
+                        Recovery
+                    </button>
+                </div>
+            </div>
+
+            <!-- Analysis Content -->
+            <div id="analysisContent" class="space-y-6">
+                <!-- Prediction Tab -->
+                <div id="predictionTab" class="space-y-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="p-4 bg-gray-800/50 rounded-lg">
+                            <h3 class="text-lg font-semibold mb-2">Deadlock Probability</h3>
+                            <div id="deadlockProbability" class="text-2xl font-bold text-yellow-400">-</div>
+                            <div class="mt-2 text-sm text-gray-400">Based on current resource allocation patterns</div>
+                        </div>
+                        <div class="p-4 bg-gray-800/50 rounded-lg">
+                            <h3 class="text-lg font-semibold mb-2">Time to Deadlock</h3>
+                            <div id="timeToDeadlock" class="text-2xl font-bold text-blue-400">-</div>
+                            <div class="mt-2 text-sm text-gray-400">Estimated steps until potential deadlock</div>
+                        </div>
+                    </div>
+                    <canvas id="predictionChart" height="200"></canvas>
+                </div>
+
+                <!-- Optimization Tab -->
+                <div id="optimizationTab" class="hidden space-y-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="p-4 bg-gray-800/50 rounded-lg">
+                            <h3 class="text-lg font-semibold mb-2">Optimal Resource Distribution</h3>
+                            <div id="optimalDistribution" class="space-y-2"></div>
+                        </div>
+                        <div class="p-4 bg-gray-800/50 rounded-lg">
+                            <h3 class="text-lg font-semibold mb-2">Suggested Actions</h3>
+                            <ul id="suggestedActions" class="list-disc pl-4 space-y-2"></ul>
+                        </div>
+                    </div>
+                    <canvas id="optimizationChart" height="200"></canvas>
+                </div>
+
+                <!-- Recovery Tab -->
+                <div id="recoveryTab" class="hidden space-y-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="p-4 bg-gray-800/50 rounded-lg">
+                            <h3 class="text-lg font-semibold mb-2">Recovery Strategy</h3>
+                            <div id="recoveryStrategy" class="space-y-2"></div>
+                        </div>
+                        <div class="p-4 bg-gray-800/50 rounded-lg">
+                            <h3 class="text-lg font-semibold mb-2">Impact Analysis</h3>
+                            <div id="recoveryImpact" class="space-y-2"></div>
+                        </div>
+                    </div>
+                    <canvas id="recoveryChart" height="200"></canvas>
+                </div>
+            </div>
         </div>
     </div>
 
     <script>
+        let simulationHistory = [];
+        let resourceChart = null;
+
+        function updateMatrixBuilder() {
+            const numProcesses = parseInt(document.getElementById('numProcesses').value);
+            const numResources = parseInt(document.getElementById('numResources').value);
+            
+            // Build allocation matrix
+            document.getElementById('allocationMatrix').innerHTML = buildMatrixTable(numProcesses, numResources, 'allocation');
+            
+            // Build max demand matrix
+            document.getElementById('maxDemandMatrix').innerHTML = buildMatrixTable(numProcesses, numResources, 'maxDemand');
+            
+            // Build available resources inputs
+            let availableHtml = '';
+            for (let i = 0; i < numResources; i++) {
+                availableHtml += `
+                    <div class="flex flex-col items-center">
+                        <label class="text-sm mb-1">R${i}</label>
+                        <input type="number" min="0" value="2" 
+                               class="w-16 p-2 rounded bg-gray-700 text-white text-center matrix-cell"
+                               id="available_${i}">
+                    </div>`;
+            }
+            document.getElementById('availableResources').innerHTML = availableHtml;
+            
+            // Update chart
+            updateResourceChart();
+        }
+
+        function buildMatrixTable(rows, cols, prefix) {
+            let html = '<table class="matrix-input-table">';
+            for (let i = 0; i < rows; i++) {
+                html += '<tr>';
+                for (let j = 0; j < cols; j++) {
+                    html += `<td><input type="number" min="0" value="0" 
+                            class="matrix-cell" 
+                            data-row="${i}" data-col="${j}" data-matrix="${prefix}"></td>`;
+                }
+                html += '</tr>';
+            }
+            html += '</table>';
+            return html;
+        }
+
+        function getMatrixFromBuilder(prefix) {
+            const matrix = [];
+            const rows = parseInt(document.getElementById('numProcesses').value);
+            const cols = parseInt(document.getElementById('numResources').value);
+            
+            for (let i = 0; i < rows; i++) {
+                const row = [];
+                for (let j = 0; j < cols; j++) {
+                    const cell = document.querySelector(`input[data-matrix="${prefix}"][data-row="${i}"][data-col="${j}"]`);
+                    row.push(parseInt(cell.value) || 0);
+                }
+                matrix.push(row);
+            }
+            return matrix;
+        }
+
+        function getAvailableResources() {
+            const numResources = parseInt(document.getElementById('numResources').value);
+            const available = [];
+            for (let i = 0; i < numResources; i++) {
+                available.push(parseInt(document.getElementById(`available_${i}`).value) || 0);
+            }
+            return available;
+        }
+
+        function updateResourceChart() {
+            const allocation = getMatrixFromBuilder('allocation');
+            const maxDemand = getMatrixFromBuilder('maxDemand');
+            const available = getAvailableResources();
+            
+            const ctx = document.getElementById('resourceChart').getContext('2d');
+            
+            if (resourceChart) {
+                resourceChart.destroy();
+            }
+            
+            const labels = Array.from({length: available.length}, (_, i) => `Resource ${i}`);
+            const datasets = [{
+                label: 'Available',
+                data: available,
+                backgroundColor: 'rgba(34, 197, 94, 0.5)',
+                borderColor: 'rgb(34, 197, 94)',
+                borderWidth: 1
+            }, {
+                label: 'Allocated',
+                data: allocation[0].map((_, colIndex) => 
+                    allocation.reduce((sum, row) => sum + row[colIndex], 0)),
+                backgroundColor: 'rgba(59, 130, 246, 0.5)',
+                borderColor: 'rgb(59, 130, 246)',
+                borderWidth: 1
+            }, {
+                label: 'Max Demand',
+                data: maxDemand[0].map((_, colIndex) => 
+                    maxDemand.reduce((sum, row) => sum + row[colIndex], 0)),
+                backgroundColor: 'rgba(239, 68, 68, 0.5)',
+                borderColor: 'rgb(239, 68, 68)',
+                borderWidth: 1
+            }];
+
+            resourceChart = new Chart(ctx, {
+                type: 'bar',
+                data: { labels, datasets },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: { 
+                            beginAtZero: true,
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.1)'
+                            },
+                            ticks: {
+                                color: 'rgba(255, 255, 255, 0.8)'
+                            }
+                        },
+                        x: {
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.1)'
+                            },
+                            ticks: {
+                                color: 'rgba(255, 255, 255, 0.8)'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: { 
+                            position: 'top',
+                            labels: {
+                                color: 'rgba(255, 255, 255, 0.8)'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
         async function simulate() {
             try {
-                const processes = document.getElementById("processes").value.split(",");
-                const resources = document.getElementById("resources").value.split(",");
-                const available = document.getElementById("available").value.split(",").map(Number);
-                const allocation = JSON.parse(document.getElementById("allocation").value);
-                const max_demand = JSON.parse(document.getElementById("max_demand").value);
+                const allocation = getMatrixFromBuilder('allocation');
+                const maxDemand = getMatrixFromBuilder('maxDemand');
+                const available = getAvailableResources();
+                
+                const numProcesses = parseInt(document.getElementById('numProcesses').value);
+                const numResources = parseInt(document.getElementById('numResources').value);
+                
+                const processes = Array.from({length: numProcesses}, (_, i) => `P${i}`);
+                const resources = Array.from({length: numResources}, (_, i) => `R${i}`);
+
+                updateResourceChart();
 
                 const response = await fetch("/simulate", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ processes, resources, allocation, max_demand, available })
+                    body: JSON.stringify({ 
+                        processes, 
+                        resources, 
+                        allocation, 
+                        max_demand: maxDemand, 
+                        available 
+                    })
                 });
 
                 const data = await response.json();
-                let result = `<strong>Safe State:</strong> ${data.safe_state ? "Yes" : "No"}<br>`;
-
-                if (data.safe_state) {
-                    result += `<strong>Safe Sequence:</strong> ${data.safe_sequence.join(" → ")}<br>`;
+                
+                if (data.error) {
+                    document.getElementById("result").innerHTML = `
+                        <div class="p-4 mt-4 rounded-lg border border-red-500 bg-red-900/50 text-red-300">
+                            <strong class="text-red-400 text-lg">⚠️ Input Error</strong>
+                            <div class="mt-2">
+                                ${data.error}
+                            </div>
+                        </div>`;
+                    return;
                 }
-
-                if (data.deadlock_detected) {
-    result += `
-        <div class="p-4 mt-4 rounded-lg border border-red-500 bg-red-900/50 text-red-300">
-            <strong class="text-red-400 text-lg">🚨 Deadlock detected!</strong>
-            <div class="mt-2 text-sm font-mono bg-red-800/40 p-2 rounded-md inline-block">
-                ${data.deadlock_cycle.map(edge => `[${edge[0]} → ${edge[1]}]`).join(" ⮕ ")}
-            </div>
-        </div>`;
-
-
-                } else {
-                    result += "<strong>No deadlock detected.</strong><br>";
-                }
-
-                document.getElementById("result").innerHTML = result;
+                
+                simulationHistory.unshift({
+                    timestamp: new Date(),
+                    data: data,
+                    input: { processes, resources, allocation, maxDemand, available }
+                });
+                updateHistory();
+                displayResults(data);
+                
+                // Update analysis after simulation
+                updateAnalysis('prediction');
+                
             } catch (error) {
                 console.error("Error in simulation:", error);
-                document.getElementById("result").innerHTML = "<strong>Error in processing data. Please check input format.</strong>";
+                showError(error.message);
             }
+        }
+
+        function displayResults(data) {
+            let result = `
+                <div class="p-6 rounded-lg ${data.safe_state ? 'bg-green-900/50 border border-green-500' : 'bg-red-900/50 border border-red-500'}">
+                    <div class="flex items-center space-x-3">
+                        <span class="text-2xl">${data.safe_state ? '✅' : '❌'}</span>
+                        <h3 class="text-xl font-bold">${data.safe_state ? 'System is in a Safe State' : 'System is in an Unsafe State'}</h3>
+                    </div>`;
+
+            if (data.safe_state) {
+                result += `
+                    <div class="mt-4 p-4 bg-green-800/30 rounded-lg">
+                        <h4 class="font-semibold mb-2">Safe Sequence:</h4>
+                        <div class="flex items-center space-x-2 flex-wrap">
+                            ${data.safe_sequence.map((p, i) => `
+                                <span class="px-3 py-1 bg-green-700 rounded-lg">${p}</span>
+                                ${i < data.safe_sequence.length - 1 ? '<span>→</span>' : ''}
+                            `).join('')}
+                        </div>
+                    </div>`;
+            }
+
+            if (data.deadlock_detected) {
+                result += `
+                    <div class="mt-4 p-4 bg-red-800/30 rounded-lg">
+                        <h4 class="font-semibold mb-2">🚨 Deadlock Detected</h4>
+                        <div class="font-mono text-sm">
+                            ${data.deadlock_cycle.map(edge => `[${edge[0]} → ${edge[1]}]`).join(" ⮕ ")}
+                        </div>
+                    </div>`;
+            }
+
+            result += '</div>';
+
+            if (data.metrics) {
+                result += `
+                    <div class="mt-6 p-4 rounded-lg bg-gray-800/50">
+                        <h4 class="font-semibold mb-4">System Metrics</h4>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <h5 class="font-semibold text-blue-300">Resource Utilization</h5>
+                                <ul class="mt-2 space-y-1">
+                                    ${data.metrics.resource_utilization.map((util, i) => `
+                                        <li>Resource ${i}: ${util.toFixed(1)}%</li>
+                                    `).join('')}
+                                </ul>
+                            </div>
+                            <div>
+                                <h5 class="font-semibold text-purple-300">Process States</h5>
+                                <ul class="mt-2 space-y-1">
+                                    ${data.metrics.process_states.map((state, i) => `
+                                        <li>P${i}: ${state}</li>
+                                    `).join('')}
+                                </ul>
+                            </div>
+                        </div>
+                    </div>`;
+            }
+
+            document.getElementById("result").innerHTML = result;
+        }
+
+        function updateHistory() {
+            const historyDiv = document.getElementById('history');
+            historyDiv.innerHTML = simulationHistory.map((entry, index) => `
+                <div class="p-4 rounded-lg bg-gray-800/50 hover:bg-gray-700/50 transition-colors cursor-pointer"
+                     onclick="loadHistoryEntry(${index})">
+                    <div class="flex justify-between items-center">
+                        <span class="font-semibold">${entry.timestamp.toLocaleTimeString()}</span>
+                        <span class="${entry.data.safe_state ? 'text-green-400' : 'text-red-400'}">
+                            ${entry.data.safe_state ? 'Safe' : 'Unsafe'}
+                        </span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function loadHistoryEntry(index) {
+            const entry = simulationHistory[index];
+            document.getElementById('numProcesses').value = entry.input.processes.length;
+            document.getElementById('numResources').value = entry.input.resources.length;
+            updateMatrixBuilder();
+            
+            // Set matrix values
+            entry.input.allocation.forEach((row, i) => {
+                row.forEach((value, j) => {
+                    const cell = document.querySelector(`input[data-matrix="allocation"][data-row="${i}"][data-col="${j}"]`);
+                    if (cell) cell.value = value;
+                });
+            });
+            
+            entry.input.maxDemand.forEach((row, i) => {
+                row.forEach((value, j) => {
+                    const cell = document.querySelector(`input[data-matrix="maxDemand"][data-row="${i}"][data-col="${j}"]`);
+                    if (cell) cell.value = value;
+                });
+            });
+            
+            entry.input.available.forEach((value, i) => {
+                const input = document.getElementById(`available_${i}`);
+                if (input) input.value = value;
+            });
+            
+            updateResourceChart();
+            displayResults(entry.data);
+        }
+
+        function loadExample(scenarioType = 'safe') {
+            const scenarios = {
+                // Safe State Example
+                'safe': {
+                    processes: 5,
+                    resources: 3,
+                    allocation: [
+                        [0, 1, 0],
+                        [2, 0, 0],
+                        [3, 0, 2],
+                        [2, 1, 1],
+                        [0, 0, 2]
+                    ],
+                    maxDemand: [
+                        [7, 5, 3],
+                        [3, 2, 2],
+                        [9, 0, 2],
+                        [2, 2, 2],
+                        [4, 3, 3]
+                    ],
+                    available: [3, 3, 2]
+                },
+                // Circular Wait Deadlock
+                'circular': {
+                    processes: 4,
+                    resources: 3,
+                    allocation: [
+                        [1, 0, 1],
+                        [1, 1, 0],
+                        [0, 1, 1],
+                        [1, 0, 1]
+                    ],
+                    maxDemand: [
+                        [2, 1, 1],
+                        [1, 1, 1],
+                        [1, 1, 1],
+                        [2, 0, 1]
+                    ],
+                    available: [0, 0, 0]
+                },
+                // Resource Starvation
+                'starvation': {
+                    processes: 3,
+                    resources: 2,
+                    allocation: [
+                        [1, 1],
+                        [1, 0],
+                        [0, 1]
+                    ],
+                    maxDemand: [
+                        [1, 1],
+                        [1, 1],
+                        [1, 1]
+                    ],
+                    available: [0, 0]
+                },
+                // Multiple Resource Deadlock
+                'multiple': {
+                    processes: 4,
+                    resources: 3,
+                    allocation: [
+                        [2, 1, 0],
+                        [1, 0, 2],
+                        [1, 1, 1],
+                        [0, 2, 1]
+                    ],
+                    maxDemand: [
+                        [2, 1, 2],
+                        [2, 2, 2],
+                        [1, 1, 2],
+                        [1, 2, 1]
+                    ],
+                    available: [0, 0, 0]
+                },
+                // Immediate Deadlock
+                'immediate': {
+                    processes: 2,
+                    resources: 2,
+                    allocation: [
+                        [1, 0],
+                        [0, 1]
+                    ],
+                    maxDemand: [
+                        [1, 1],
+                        [1, 1]
+                    ],
+                    available: [0, 0]
+                },
+                // Complex Multi-Resource Deadlock
+                'complex': {
+                    processes: 6,
+                    resources: 4,
+                    allocation: [
+                        [2, 1, 0, 1],
+                        [1, 0, 2, 1],
+                        [0, 2, 1, 0],
+                        [1, 1, 1, 0],
+                        [0, 0, 2, 1],
+                        [1, 1, 0, 2]
+                    ],
+                    maxDemand: [
+                        [3, 2, 1, 2],
+                        [2, 1, 3, 2],
+                        [2, 2, 2, 1],
+                        [1, 3, 1, 1],
+                        [1, 1, 2, 2],
+                        [2, 1, 1, 2]
+                    ],
+                    available: [1, 1, 1, 1]
+                },
+                // Priority Inversion
+                'priority': {
+                    processes: 3,
+                    resources: 3,
+                    allocation: [
+                        [1, 0, 0],
+                        [0, 1, 0],
+                        [0, 0, 1]
+                    ],
+                    maxDemand: [
+                        [1, 1, 0],
+                        [0, 1, 1],
+                        [1, 0, 1]
+                    ],
+                    available: [0, 0, 0]
+                },
+                // Cascading Deadlock
+                'cascade': {
+                    processes: 5,
+                    resources: 4,
+                    allocation: [
+                        [1, 1, 0, 0],
+                        [0, 1, 1, 0],
+                        [0, 0, 1, 1],
+                        [1, 0, 0, 1],
+                        [1, 0, 1, 0]
+                    ],
+                    maxDemand: [
+                        [1, 2, 0, 0],
+                        [0, 1, 2, 0],
+                        [0, 0, 1, 2],
+                        [2, 0, 0, 1],
+                        [1, 1, 1, 1]
+                    ],
+                    available: [0, 0, 0, 0]
+                }
+            };
+
+            const scenario = scenarios[scenarioType];
+            if (!scenario) {
+                console.error('Invalid scenario type');
+                return;
+            }
+
+            // Set the matrix dimensions
+            document.getElementById('numProcesses').value = scenario.processes;
+            document.getElementById('numResources').value = scenario.resources;
+            updateMatrixBuilder();
+
+            // Fill in the allocation matrix
+            scenario.allocation.forEach((row, i) => {
+                row.forEach((value, j) => {
+                    const cell = document.querySelector(`input[data-matrix="allocation"][data-row="${i}"][data-col="${j}"]`);
+                    if (cell) cell.value = value;
+                });
+            });
+
+            // Fill in the max demand matrix
+            scenario.maxDemand.forEach((row, i) => {
+                row.forEach((value, j) => {
+                    const cell = document.querySelector(`input[data-matrix="maxDemand"][data-row="${i}"][data-col="${j}"]`);
+                    if (cell) cell.value = value;
+                });
+            });
+
+            // Set available resources
+            scenario.available.forEach((value, i) => {
+                const input = document.getElementById(`available_${i}`);
+                if (input) input.value = value;
+            });
+
+            updateResourceChart();
+            simulate(); // Automatically run simulation for the loaded example
+        }
+
+        function clearForm() {
+            document.getElementById('numProcesses').value = 3;
+            document.getElementById('numResources').value = 3;
+            updateMatrixBuilder();
+            document.getElementById('result').innerHTML = '';
+        }
+
+        function initializeAdvancedAnalysis() {
+            // Set up initial tab
+            switchAnalysisTab('prediction');
+            
+            // Add event listeners for the analysis tabs
+            document.querySelectorAll('[onclick^="switchAnalysisTab"]').forEach(button => {
+                const tabName = button.getAttribute('onclick').match(/'([^']+)'/)[1];
+                button.addEventListener('click', () => switchAnalysisTab(tabName));
+            });
+        }
+
+        function initializeScenarioDropdown() {
+            const select = document.getElementById('scenarioSelect');
+            
+            // Add hover effect description
+            select.addEventListener('mouseover', function(e) {
+                const option = e.target.closest('option');
+                if (option) {
+                    const descriptions = {
+                        'safe': 'A system state with no deadlock risk',
+                        'circular': 'Classic circular wait deadlock scenario',
+                        'starvation': 'Resources are exhausted, processes cannot proceed',
+                        'multiple': 'Complex deadlock with multiple resource types',
+                        'immediate': 'Simple two-process deadlock situation',
+                        'complex': 'Advanced multi-resource deadlock scenario',
+                        'priority': 'Deadlock caused by priority inversion',
+                        'cascade': 'Chain reaction deadlock scenario'
+                    };
+                    option.title = descriptions[option.value] || '';
+                }
+            });
+
+            // Add animation when loading scenario
+            select.addEventListener('change', function() {
+                const container = document.querySelector('.container');
+                container.classList.add('opacity-50');
+                setTimeout(() => {
+                    container.classList.remove('opacity-50');
+                }, 300);
+            });
+        }
+
+        // Call this when the page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            updateMatrixBuilder();
+            initializeAdvancedAnalysis();
+            initializeScenarioDropdown();
+        });
+
+        // Analysis Functions
+        function updateAnalysis(tabName) {
+            try {
+                const allocation = getMatrixFromBuilder('allocation');
+                const maxDemand = getMatrixFromBuilder('maxDemand');
+                const available = getAvailableResources();
+
+                switch(tabName) {
+                    case 'prediction':
+                        updatePredictionAnalysis(allocation, maxDemand, available);
+                        break;
+                    case 'optimization':
+                        updateOptimizationAnalysis(allocation, maxDemand, available);
+                        break;
+                    case 'recovery':
+                        updateRecoveryAnalysis(allocation, maxDemand, available);
+                        break;
+                }
+            } catch (error) {
+                console.error('Error in updateAnalysis:', error);
+                showError('Failed to update analysis: ' + error.message);
+            }
+        }
+
+        function updatePredictionAnalysis(allocation, maxDemand, available) {
+            // Calculate deadlock probability
+            const deadlockProb = calculateDeadlockProbability(allocation, maxDemand, available);
+            document.getElementById('deadlockProbability').textContent = `${(deadlockProb * 100).toFixed(1)}%`;
+            
+            // Calculate time to deadlock
+            const timeToDeadlock = estimateTimeToDeadlock(allocation, maxDemand, available);
+            document.getElementById('timeToDeadlock').textContent = 
+                timeToDeadlock === Infinity ? 'No Risk' : `~${timeToDeadlock} steps`;
+        }
+
+        function calculateDeadlockProbability(allocation, maxDemand, available) {
+            let riskFactors = 0;
+            const totalFactors = 4;
+            
+            // Factor 1: Resource utilization
+            const utilization = available.map((a, i) => {
+                const total = a + allocation.reduce((sum, row) => sum + row[i], 0);
+                return 1 - (a / total);
+            });
+            if (utilization.some(u => u > 0.8)) riskFactors++;
+            
+            // Factor 2: Circular wait potential
+            if (hasCircularWait(allocation, maxDemand)) riskFactors++;
+            
+            // Factor 3: Resource availability
+            if (available.some(a => a === 0)) riskFactors++;
+            
+            // Factor 4: Process needs vs availability
+            const needsMatrix = maxDemand.map((row, i) => 
+                row.map((max, j) => max - allocation[i][j]));
+            if (needsMatrix.some(row => row.some(need => need > 0))) riskFactors++;
+            
+            return riskFactors / totalFactors;
+        }
+
+        function hasCircularWait(allocation, maxDemand) {
+            const n = allocation.length;
+            const graph = Array(n).fill().map(() => Array(n).fill(false));
+            
+            // Build resource allocation graph
+            for (let i = 0; i < n; i++) {
+                for (let j = 0; j < n; j++) {
+                    if (i !== j) {
+                        // Check if process i needs any resources held by process j
+                        const needsResources = maxDemand[i].some((max, k) => 
+                            max - allocation[i][k] > 0 && allocation[j][k] > 0);
+                        if (needsResources) {
+                            graph[i][j] = true;
+                        }
+                    }
+                }
+            }
+            
+            // Check for cycles using DFS
+            const visited = new Set();
+            const recStack = new Set();
+            
+            function dfs(v) {
+                visited.add(v);
+                recStack.add(v);
+                
+                for (let i = 0; i < n; i++) {
+                    if (graph[v][i]) {
+                        if (!visited.has(i)) {
+                            if (dfs(i)) return true;
+                        } else if (recStack.has(i)) {
+                            return true;
+                        }
+                    }
+                }
+                
+                recStack.delete(v);
+                return false;
+            }
+            
+            for (let i = 0; i < n; i++) {
+                if (!visited.has(i)) {
+                    if (dfs(i)) return true;
+                }
+            }
+            
+            return false;
+        }
+
+        function estimateTimeToDeadlock(allocation, maxDemand, available) {
+            const deadlockProb = calculateDeadlockProbability(allocation, maxDemand, available);
+            if (deadlockProb < 0.3) return Infinity;
+            
+            const resourceContention = calculateResourceContention(allocation, maxDemand, available);
+            const baseSteps = 10;
+            return Math.max(1, Math.ceil(baseSteps * (1 - deadlockProb) / resourceContention));
+        }
+
+        function calculateResourceContention(allocation, maxDemand, available) {
+            const totalResources = available.map((a, i) => 
+                a + allocation.reduce((sum, row) => sum + row[i], 0));
+            
+            const contention = available.map((a, i) => {
+                const needed = maxDemand.reduce((sum, row) => sum + Math.max(0, row[i]), 0);
+                return needed / (totalResources[i] || 1);
+            });
+            
+            return Math.max(...contention);
+        }
+
+        function showError(message) {
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'p-4 mb-4 bg-red-900/50 border border-red-500 rounded-lg';
+            errorDiv.innerHTML = `
+                <strong class="text-red-400">Error:</strong>
+                <span class="text-red-300 ml-2">${message}</span>
+            `;
+            
+            // Find the results container and insert the error at the top
+            const resultsContainer = document.querySelector('#result') || document.body;
+            resultsContainer.insertBefore(errorDiv, resultsContainer.firstChild);
+            
+            // Remove the error after 5 seconds
+            setTimeout(() => {
+                errorDiv.remove();
+            }, 5000);
         }
     </script>
 </body>
